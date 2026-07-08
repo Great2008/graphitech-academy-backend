@@ -29,10 +29,11 @@ from app.dependencies import get_current_user, require_role
 from app.models.base import UserRole
 from app.models.user import User
 from app.schemas.learning import (
-    LearningPathRead, CourseRead, CourseWithLessons, CourseCreate, CourseUpdate, LessonCreate, LessonRead,
+    LearningPathRead, CourseRead, CourseWithLessons, CourseCreate, CourseUpdate,
+    CourseAIDraftRequest, LessonCreate, LessonRead,
 )
 from app.schemas.enrollment import EnrollmentRead, ProgressUpdate, ProgressRead
-from app.services import course_service, enrollment_service
+from app.services import course_service, enrollment_service, ai_service
 
 router = APIRouter()
 
@@ -96,6 +97,23 @@ def update_progress(
 )
 def create_course(course_in: CourseCreate, db: Session = Depends(get_db)):
     return course_service.create_course(db, course_in)
+
+
+@router.post(
+    "/courses/ai-draft",
+    response_model=CourseWithLessons,
+    status_code=201,
+    dependencies=[Depends(require_role(*STAFF_ROLES))],
+)
+def ai_draft_course(draft_request: CourseAIDraftRequest, db: Session = Depends(get_db)):
+    """
+    Drafts a full course (title, description, lessons, optional quizzes)
+    via Groq, then saves it as a DRAFT course — nothing is published.
+    Review and edit the result, then call POST /courses/{id}/publish
+    when it's ready for students.
+    """
+    draft = ai_service.draft_course_with_ai(draft_request)
+    return course_service.create_course_from_ai_draft(db, draft, draft_request)
 
 
 @router.post(
