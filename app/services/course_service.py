@@ -14,9 +14,11 @@ from uuid import UUID
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException, status
 
+from app.core.utils import slugify
 from app.models.learning import Course, Lesson, LearningPath
+from app.models.assessment import Quiz
 from app.models.base import CourseStatus
-from app.schemas.learning import CourseCreate, CourseUpdate, LessonCreate
+from app.schemas.learning import CourseCreate, CourseUpdate, LessonCreate, CourseAIDraftRequest
 
 
 def get_learning_paths(db: Session, published_only: bool = True) -> List[LearningPath]:
@@ -117,6 +119,61 @@ def update_course_metadata(db: Session, course_id: UUID, updates: CourseUpdate) 
         )
     for field, value in updates.model_dump(exclude_unset=True).items():
         setattr(course, field, value)
+    db.commit()
+    db.refresh(course)
+    return course
+
+
+def create_course_from_ai_draft(db: Session, draft: dict, request_in: CourseAIDraftRequest) -> Course:
+    """
+    Persists a Groq-generated draft (already shape-validated in ai_service)
+    as a DRAFT course with lessons and quizzes attached. Nothing here is
+    published — an Instructor/Admin must review and call publish_course()
+    separately once satisfied with the content.
+    """
+    base_slug = slugify(draft["title"])
+    slug = base_slug
+    suffix = 1
+    while db.query(Course).filter(Course.slug == slug, Course.is_latest_version.is_(True)).first():
+        suffix += 1
+        slug = f"{base_slug}-{suffix}"
+
+    course = Course(
+        learning_path_id=request_in.learning_path_id,
+        title=draft["title"],
+        slug=slug,
+        description=draft["description"],
+        status=CourseStatus.DRAFT,
+        version=1,
+        is_latest_version=True,
+        requires_capstone=request_in.include_capstone,
+        generated_by_ai=True,
+        ai_source_prompt=request_in.topic,
+    )
+    db.add(course)
+    db.flush()
+
+    for index, lesson_data in enumerate(draft["lessons"]):
+        lesson = Lesson(
+            course_id=course.id,
+            title=lesson_data["title"],
+            order_index=index,
+            content_markdown=lesson_data["content_markdown"],
+            estimated_minutes=lesson_data.get("estimated_minutes"),
+            has_quiz=bool(lesson_data.get("has_quiz")) and lesson_data.get("quiz") is not None,
+        )
+        db.add(lesson)
+        db.flush()
+
+        quiz_data = lesson_data.get("quiz")
+        if lesson.has_quiz and quiz_data:
+            db.add(Quiz(
+                lesson_id=lesson.id,
+                title=quiz_data.get("title", f"{lesson.title} Quiz"),
+                pass_mark_percent=quiz_data.get("pass_mark_percent", 70),
+                questions=quiz_data.get("questions", []),
+            ))
+
     db.commit()
     db.refresh(course)
     return course
