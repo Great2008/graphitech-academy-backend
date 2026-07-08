@@ -31,5 +31,7 @@ def health_check():
 
 
 # --- Routers (added incrementally as each flow is built) ---
-# from app.routers import auth, courses, enrollments, certificates, ...
-# app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+from app.routers import auth  # noqa: E402
+
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+# from app.routers import courses, enrollments, certificates, ...

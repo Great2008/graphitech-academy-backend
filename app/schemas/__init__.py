@@ -3,6 +3,7 @@ app/schemas/__init__.py
 """
 
 from app.schemas.user import UserCreate, UserUpdate, UserRoleUpdate, UserRead, UserPublic  # noqa: F401
+from app.schemas.auth import LoginRequest, Token, TokenWithUser  # noqa: F401
 from app.schemas.learning import (  # noqa: F401
     LearningPathCreate, LearningPathUpdate, LearningPathRead, LearningPathWithCourses,
     CourseCreate, CourseAIDraftRequest, CourseUpdate, CourseRead, CourseWithLessons,
