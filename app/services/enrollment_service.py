@@ -93,11 +93,16 @@ def mark_lesson_progress(
 
 def _recompute_completion(db: Session, enrollment: Enrollment) -> None:
     """
-    Checks whether all lessons in the course are complete, and — if the
-    course doesn't require a capstone — flips certificate eligibility on.
-    (If it does require a capstone, eligibility is finalized in the
-    capstone review flow instead.)
+    Checks whether all lessons in the course are complete. If the course
+    doesn't require a capstone, certificate eligibility flips on immediately.
+    If it does require a capstone, eligibility only flips on if a capstone
+    was already APPROVED (handles the case where capstone review happened
+    before the last lesson was marked complete — the more common case,
+    where lessons finish first, is handled in capstone_service instead).
     """
+    from app.models.assessment import CapstoneSubmission
+    from app.models.base import CapstoneStatus
+
     course = db.query(Course).filter(Course.id == enrollment.course_id).first()
     total_lessons = db.query(Lesson).filter(Lesson.course_id == course.id).count()
     completed_lessons = (
@@ -109,6 +114,20 @@ def _recompute_completion(db: Session, enrollment: Enrollment) -> None:
     if total_lessons > 0 and completed_lessons >= total_lessons:
         enrollment.status = EnrollmentStatus.COMPLETED
         enrollment.completed_at = enrollment.completed_at or datetime.now(timezone.utc)
+
         if not course.requires_capstone:
             enrollment.is_eligible_for_certificate = True
+        else:
+            approved_capstone = (
+                db.query(CapstoneSubmission)
+                .filter(
+                    CapstoneSubmission.user_id == enrollment.user_id,
+                    CapstoneSubmission.course_id == enrollment.course_id,
+                    CapstoneSubmission.status == CapstoneStatus.APPROVED,
+                )
+                .first()
+            )
+            if approved_capstone:
+                enrollment.is_eligible_for_certificate = True
+
         db.commit()
