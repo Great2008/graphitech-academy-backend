@@ -9,4 +9,3 @@ venv/
 .DS_Store
 .vscode/
 .idea/
-alembic/versions/.gitkeep
