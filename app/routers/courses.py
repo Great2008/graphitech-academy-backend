@@ -89,6 +89,24 @@ def update_progress(
 
 # --- Instructor/Admin routes ---
 
+@router.get(
+    "/admin/courses",
+    response_model=List[CourseRead],
+    dependencies=[Depends(require_role(*STAFF_ROLES))],
+)
+def list_all_courses_admin(db: Session = Depends(get_db)):
+    return course_service.list_all_courses_admin(db)
+
+
+@router.get(
+    "/admin/courses/{course_id}",
+    response_model=CourseWithLessons,
+    dependencies=[Depends(require_role(*STAFF_ROLES))],
+)
+def get_course_admin(course_id: UUID, db: Session = Depends(get_db)):
+    return course_service.get_course_by_id(db, course_id)
+
+
 @router.post(
     "/courses",
     response_model=CourseRead,

@@ -50,6 +50,11 @@ def get_course_by_id(db: Session, course_id: UUID) -> Course:
     return course
 
 
+def list_all_courses_admin(db: Session) -> List[Course]:
+    """Staff-only: every course, every version, every status — for the admin panel."""
+    return db.query(Course).order_by(Course.created_at.desc()).all()
+
+
 def list_published_courses(db: Session, learning_path_id: Optional[UUID] = None) -> List[Course]:
     query = db.query(Course).filter(
         Course.status == CourseStatus.PUBLISHED,
