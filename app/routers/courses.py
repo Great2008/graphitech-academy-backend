@@ -30,7 +30,7 @@ from app.models.base import UserRole
 from app.models.user import User
 from app.schemas.learning import (
     LearningPathRead, CourseRead, CourseWithLessons, CourseCreate, CourseUpdate,
-    CourseAIDraftRequest, LessonCreate, LessonRead,
+    CourseAIDraftRequest, LessonCreate, LessonUpdate, LessonRead,
 )
 from app.schemas.enrollment import EnrollmentRead, ProgressUpdate, ProgressRead
 from app.services import course_service, enrollment_service, ai_service
@@ -124,6 +124,25 @@ def ai_draft_course(draft_request: CourseAIDraftRequest, db: Session = Depends(g
 )
 def add_lesson(course_id: UUID, lesson_in: LessonCreate, db: Session = Depends(get_db)):
     return course_service.add_lesson(db, course_id, lesson_in)
+
+
+@router.patch(
+    "/courses/{course_id}/lessons/{lesson_id}",
+    response_model=LessonRead,
+    dependencies=[Depends(require_role(*STAFF_ROLES))],
+)
+def update_lesson(course_id: UUID, lesson_id: UUID, updates: LessonUpdate, db: Session = Depends(get_db)):
+    return course_service.update_lesson(db, course_id, lesson_id, updates)
+
+
+@router.delete(
+    "/courses/{course_id}/lessons/{lesson_id}",
+    status_code=204,
+    dependencies=[Depends(require_role(*STAFF_ROLES))],
+)
+def delete_lesson(course_id: UUID, lesson_id: UUID, db: Session = Depends(get_db)):
+    course_service.delete_lesson(db, course_id, lesson_id)
+    return None
 
 
 @router.patch(

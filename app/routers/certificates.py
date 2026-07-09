@@ -38,6 +38,15 @@ def get_my_certificates(current_user: User = Depends(get_current_user), db: Sess
 
 
 @router.post(
+    "/certificates/{certificate_id}/regenerate-assets",
+    response_model=CertificateRead,
+    dependencies=[Depends(require_role(UserRole.ADMIN, UserRole.SUPER_ADMIN))],
+)
+def regenerate_certificate_assets(certificate_id: UUID, db: Session = Depends(get_db)):
+    return certificate_service.regenerate_certificate_assets(db, certificate_id)
+
+
+@router.post(
     "/certificates/{certificate_id}/revoke",
     response_model=CertificateRead,
     dependencies=[Depends(require_role(UserRole.ADMIN, UserRole.SUPER_ADMIN))],
