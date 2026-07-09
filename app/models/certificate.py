@@ -13,11 +13,11 @@ the public verification URL, e.g.:
 qr_code_url points to a generated QR image encoding the verification URL.
 """
 
-from sqlalchemy import Column, String, DateTime, ForeignKey, Enum, Integer
+from sqlalchemy import Column, String, DateTime, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from app.models.base import Base, UUIDMixin, TimestampMixin, CertificateStatus
+from app.models.base import Base, UUIDMixin, TimestampMixin, CertificateStatus, pg_enum
 
 
 class Certificate(Base, UUIDMixin, TimestampMixin):
@@ -35,7 +35,7 @@ class Certificate(Base, UUIDMixin, TimestampMixin):
     course_title_snapshot = Column(String, nullable=False)
     grade_percent = Column(Integer, nullable=True)  # optional
 
-    status = Column(Enum(CertificateStatus), default=CertificateStatus.VALID, nullable=False)
+    status = Column(pg_enum(CertificateStatus, "certificatestatus"), default=CertificateStatus.VALID, nullable=False)
     revoked_reason = Column(String, nullable=True)
     revoked_at = Column(DateTime(timezone=True), nullable=True)
 

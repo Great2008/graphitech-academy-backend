@@ -5,11 +5,11 @@ Enrollment ties a User to a specific Course version. Progress tracks
 per-lesson completion within that enrollment.
 """
 
-from sqlalchemy import Column, DateTime, ForeignKey, Enum, Boolean, Integer, UniqueConstraint
+from sqlalchemy import Column, DateTime, ForeignKey, Boolean, Integer, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from app.models.base import Base, UUIDMixin, TimestampMixin, EnrollmentStatus
+from app.models.base import Base, UUIDMixin, TimestampMixin, EnrollmentStatus, pg_enum
 
 
 class Enrollment(Base, UUIDMixin, TimestampMixin):
@@ -19,7 +19,7 @@ class Enrollment(Base, UUIDMixin, TimestampMixin):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     course_id = Column(UUID(as_uuid=True), ForeignKey("courses.id"), nullable=False)
 
-    status = Column(Enum(EnrollmentStatus), default=EnrollmentStatus.ACTIVE, nullable=False)
+    status = Column(pg_enum(EnrollmentStatus, "enrollmentstatus"), default=EnrollmentStatus.ACTIVE, nullable=False)
     enrolled_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
 

@@ -6,10 +6,10 @@ User model. Fields are split conceptually into public (safe to expose on
 flags) — enforced in the Pydantic schema layer, not here.
 """
 
-from sqlalchemy import Column, String, Boolean, Enum, Text, DateTime
+from sqlalchemy import Column, String, Boolean, Text, DateTime
 from sqlalchemy.orm import relationship
 
-from app.models.base import Base, UUIDMixin, TimestampMixin, UserRole
+from app.models.base import Base, UUIDMixin, TimestampMixin, UserRole, pg_enum
 
 
 class User(Base, UUIDMixin, TimestampMixin):
@@ -23,7 +23,7 @@ class User(Base, UUIDMixin, TimestampMixin):
     is_verified = Column(Boolean, default=False, nullable=False)
 
     # --- Role / access control ---
-    role = Column(Enum(UserRole), default=UserRole.STUDENT, nullable=False)
+    role = Column(pg_enum(UserRole, "userrole"), default=UserRole.STUDENT, nullable=False)
 
     # --- Public fields (safe for /u/{username}) ---
     username = Column(String, unique=True, nullable=False, index=True)

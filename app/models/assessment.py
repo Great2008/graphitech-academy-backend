@@ -6,11 +6,11 @@ certificate). Capstones can be auto-graded (e.g. test suite passes) or
 manually reviewed by an Instructor/Reviewer.
 """
 
-from sqlalchemy import Column, String, Text, Integer, Boolean, DateTime, ForeignKey, Enum, JSON
+from sqlalchemy import Column, String, Text, Integer, Boolean, DateTime, ForeignKey, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from app.models.base import Base, UUIDMixin, TimestampMixin, QuizAttemptStatus, CapstoneStatus
+from app.models.base import Base, UUIDMixin, TimestampMixin, QuizAttemptStatus, CapstoneStatus, pg_enum
 
 
 class Quiz(Base, UUIDMixin, TimestampMixin):
@@ -39,7 +39,7 @@ class QuizAttempt(Base, UUIDMixin, TimestampMixin):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
     score_percent = Column(Integer, nullable=False)
-    status = Column(Enum(QuizAttemptStatus), default=QuizAttemptStatus.IN_PROGRESS, nullable=False)
+    status = Column(pg_enum(QuizAttemptStatus, "quizattemptstatus"), default=QuizAttemptStatus.IN_PROGRESS, nullable=False)
     answers = Column(JSON, nullable=True)  # submitted answers, for review/analytics
     submitted_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -66,7 +66,7 @@ class CapstoneSubmission(Base, UUIDMixin, TimestampMixin):
     repo_url = Column(String, nullable=True)
     live_url = Column(String, nullable=True)
 
-    status = Column(Enum(CapstoneStatus), default=CapstoneStatus.SUBMITTED, nullable=False)
+    status = Column(pg_enum(CapstoneStatus, "capstonestatus"), default=CapstoneStatus.SUBMITTED, nullable=False)
 
     reviewer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     reviewer_feedback = Column(Text, nullable=True)

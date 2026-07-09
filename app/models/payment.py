@@ -9,11 +9,11 @@ all of them.
 
 import enum
 
-from sqlalchemy import Column, String, Integer, ForeignKey, Enum, DateTime, JSON
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from app.models.base import Base, UUIDMixin, TimestampMixin
+from app.models.base import Base, UUIDMixin, TimestampMixin, pg_enum
 
 
 class PaymentPurpose(str, enum.Enum):
@@ -33,13 +33,13 @@ class Payment(Base, UUIDMixin, TimestampMixin):
 
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
-    purpose = Column(Enum(PaymentPurpose), nullable=False)
+    purpose = Column(pg_enum(PaymentPurpose, "paymentpurpose"), nullable=False)
     course_id = Column(UUID(as_uuid=True), ForeignKey("courses.id"), nullable=True)  # for certificate payments
 
     amount_kobo = Column(Integer, nullable=False)  # NGN minor unit
     currency = Column(String, default="NGN", nullable=False)
 
-    status = Column(Enum(PaymentStatus), default=PaymentStatus.PENDING, nullable=False)
+    status = Column(pg_enum(PaymentStatus, "paymentstatus"), default=PaymentStatus.PENDING, nullable=False)
 
     paystack_reference = Column(String, unique=True, nullable=True, index=True)
     paystack_channel = Column(String, nullable=True)  # e.g. "card", "bank_transfer", "opay", "palmpay"

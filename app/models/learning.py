@@ -8,11 +8,11 @@ rather than mutating it in place, so students already enrolled in v1 can
 finish v1 while new enrollments go to the latest version.
 """
 
-from sqlalchemy import Column, String, Text, Integer, Boolean, ForeignKey, Enum
+from sqlalchemy import Column, String, Text, Integer, Boolean, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from app.models.base import Base, UUIDMixin, TimestampMixin, CourseStatus
+from app.models.base import Base, UUIDMixin, TimestampMixin, CourseStatus, pg_enum
 
 
 class LearningPath(Base, UUIDMixin, TimestampMixin):
@@ -47,7 +47,7 @@ class Course(Base, UUIDMixin, TimestampMixin):
     is_latest_version = Column(Boolean, default=True, nullable=False)
     previous_version_id = Column(UUID(as_uuid=True), ForeignKey("courses.id"), nullable=True)
 
-    status = Column(Enum(CourseStatus), default=CourseStatus.DRAFT, nullable=False)
+    status = Column(pg_enum(CourseStatus, "coursestatus"), default=CourseStatus.DRAFT, nullable=False)
     order_index = Column(Integer, default=0)
 
     pass_mark_percent = Column(Integer, default=70, nullable=False)  # course-level pass mark

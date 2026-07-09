@@ -8,11 +8,22 @@ import uuid
 import enum
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime
+from sqlalchemy import Column, DateTime, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
+
+
+def pg_enum(enum_cls, name: str) -> SAEnum:
+    """
+    Use for every enum column. By default SQLAlchemy persists a Python
+    Enum's MEMBER NAME (e.g. "STUDENT"), not its .value ("student") — but
+    our Postgres enum types (created in the Alembic migration) only accept
+    the lowercase .value labels. values_callable forces SQLAlchemy to send
+    .value instead, matching what the database actually expects.
+    """
+    return SAEnum(enum_cls, name=name, values_callable=lambda obj: [e.value for e in obj])
 
 
 class UUIDMixin:
