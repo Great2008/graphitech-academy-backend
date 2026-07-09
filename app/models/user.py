@@ -43,7 +43,9 @@ class User(Base, UUIDMixin, TimestampMixin):
     # --- Relationships ---
     enrollments = relationship("Enrollment", back_populates="user")
     quiz_attempts = relationship("QuizAttempt", back_populates="user")
-    capstone_submissions = relationship("CapstoneSubmission", back_populates="user")
+    capstone_submissions = relationship(
+        "CapstoneSubmission", back_populates="user", foreign_keys="CapstoneSubmission.user_id"
+    )
     certificates = relationship("Certificate", back_populates="user")
     badges = relationship("UserBadge", back_populates="user")
     projects = relationship("Project", back_populates="user")
