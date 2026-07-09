@@ -1,5 +1,5 @@
 # app/../Dockerfile — builds and runs the GraphiTech Academy backend on Render.
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 # System libraries WeasyPrint needs for PDF generation (Pango, Cairo, GDK-Pixbuf).
 # Plain `pip install weasyprint` is not enough — this is why we use Docker
@@ -7,7 +7,7 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 \
+    libgdk-pixbuf-2.0-0 \
     libffi-dev \
     libcairo2 \
     shared-mime-info \
