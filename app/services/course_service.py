@@ -18,7 +18,7 @@ from app.core.utils import slugify
 from app.models.learning import Course, Lesson, LearningPath
 from app.models.assessment import Quiz
 from app.models.base import CourseStatus
-from app.schemas.learning import CourseCreate, CourseUpdate, LessonCreate, CourseAIDraftRequest
+from app.schemas.learning import CourseCreate, CourseUpdate, LessonCreate, LessonUpdate, CourseAIDraftRequest
 
 
 def get_learning_paths(db: Session, published_only: bool = True) -> List[LearningPath]:
@@ -91,6 +91,44 @@ def add_lesson(db: Session, course_id: UUID, lesson_in: LessonCreate) -> Lesson:
     db.commit()
     db.refresh(lesson)
     return lesson
+
+
+def get_lesson(db: Session, course_id: UUID, lesson_id: UUID) -> Lesson:
+    lesson = (
+        db.query(Lesson)
+        .filter(Lesson.id == lesson_id, Lesson.course_id == course_id)
+        .first()
+    )
+    if not lesson:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lesson not found on this course")
+    return lesson
+
+
+def update_lesson(db: Session, course_id: UUID, lesson_id: UUID, updates: LessonUpdate) -> Lesson:
+    course = get_course_by_id(db, course_id)
+    if course.status == CourseStatus.PUBLISHED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot edit lessons on a published course directly — create a new version first.",
+        )
+    lesson = get_lesson(db, course_id, lesson_id)
+    for field, value in updates.model_dump(exclude_unset=True).items():
+        setattr(lesson, field, value)
+    db.commit()
+    db.refresh(lesson)
+    return lesson
+
+
+def delete_lesson(db: Session, course_id: UUID, lesson_id: UUID) -> None:
+    course = get_course_by_id(db, course_id)
+    if course.status == CourseStatus.PUBLISHED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete lessons from a published course directly — create a new version first.",
+        )
+    lesson = get_lesson(db, course_id, lesson_id)
+    db.delete(lesson)
+    db.commit()
 
 
 def publish_course(db: Session, course_id: UUID) -> Course:

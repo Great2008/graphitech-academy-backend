@@ -85,16 +85,30 @@ def issue_certificate(db: Session, payment: Payment) -> Certificate:
     db.commit()
     db.refresh(certificate)
 
-    # TODO: generate QR code (qrcode lib) encoding the verification URL
-    #   f"{settings.FRONTEND_URL}/verify/{certificate_number}"
-    # and a PDF (WeasyPrint, rendering a certificate HTML template with
-    # student_name_snapshot, course_title_snapshot, certificate_number, QR
-    # image), then upload both to Supabase storage and set:
-    #   certificate.qr_code_url = <uploaded QR url>
-    #   certificate.pdf_url = <uploaded PDF url>
-    # db.commit()
+    _attach_certificate_assets(db, certificate)
 
     return certificate
+
+
+def _attach_certificate_assets(db: Session, certificate: Certificate) -> None:
+    """
+    Generates the QR code + PDF and uploads them, then saves the URLs onto
+    the certificate. Failures here are logged but never block issuance —
+    the certificate record (and its verification number) is the source of
+    truth; a missing PDF can be regenerated later without reissuing.
+    """
+    try:
+        from app.services import certificate_pdf_service
+        assets = certificate_pdf_service.generate_and_upload_certificate_assets(certificate)
+        certificate.pdf_url = assets["pdf_url"]
+        certificate.qr_code_url = assets["qr_code_url"]
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 — asset generation is best-effort, not issuance-blocking
+        import logging
+        logging.getLogger(__name__).error(
+            "Certificate %s issued but asset generation failed: %s",
+            certificate.certificate_number, exc,
+        )
 
 
 def verify_certificate(db: Session, certificate_number: str) -> Certificate:
@@ -110,6 +124,16 @@ def verify_certificate(db: Session, certificate_number: str) -> Certificate:
 
 def get_user_certificates(db: Session, user_id: UUID):
     return db.query(Certificate).filter(Certificate.user_id == user_id).all()
+
+
+def regenerate_certificate_assets(db: Session, certificate_id: UUID) -> Certificate:
+    """Staff utility to retry PDF/QR generation if it failed at issuance time."""
+    certificate = db.query(Certificate).filter(Certificate.id == certificate_id).first()
+    if not certificate:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Certificate not found")
+    _attach_certificate_assets(db, certificate)
+    db.refresh(certificate)
+    return certificate
 
 
 def revoke_certificate(db: Session, certificate_id: UUID, reason: str) -> Certificate:
