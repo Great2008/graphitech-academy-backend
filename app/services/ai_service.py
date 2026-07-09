@@ -125,3 +125,98 @@ def _validate_draft_shape(draft: dict) -> None:
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="AI draft lesson is missing required fields",
             )
+
+
+# ---------------------------------------------------------------------------
+# AI Tutor chat
+# ---------------------------------------------------------------------------
+
+TUTOR_SYSTEM_PROMPT = """You are the GraphiTech Academy AI Tutor, helping students learn to code. \
+Follow these rules strictly:
+
+1. NEVER simply hand over a complete solution to a quiz question, exercise, or capstone \
+requirement. If a student asks you to "write the code for me", "give me the answer", or \
+similar, do not comply directly — instead guide them toward the answer: ask what they've \
+tried, point out the concept they need, or walk through a similar-but-different example. \
+You may give short illustrative code snippets to explain a CONCEPT, but never a \
+drop-in solution to their actual assignment.
+
+2. If you are not confident in your answer (unfamiliar library, ambiguous question, \
+something that may have changed since your training, or genuinely uncertain), start your \
+reply with the exact token "LOW_CONFIDENCE:" followed by your answer. Do not use this \
+token unless you are genuinely uncertain.
+
+3. Be encouraging and concise. Match the student's apparent skill level. Use Markdown code \
+blocks for any code you do include.
+
+4. Stay focused on coding education, AI productivity, and career development topics \
+relevant to the academy. Politely redirect off-topic requests.
+"""
+
+
+def chat_with_tutor(message: str, is_premium: bool) -> dict:
+    """
+    Returns {"reply": str, "low_confidence_flag": bool, "plagiarism_nudge": Optional[str]}.
+    Plagiarism-risk detection is a simple keyword heuristic on the OUTGOING
+    student message — kept intentionally lightweight for v1; the system
+    prompt is the primary defense, this is just a UI signal.
+    """
+    if not settings.GROQ_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI tutor is not configured (missing GROQ_API_KEY)",
+        )
+
+    client = Groq(api_key=settings.GROQ_API_KEY)
+
+    model = GROQ_MODEL if not is_premium else GROQ_MODEL  # placeholder for a stronger premium model later
+
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": TUTOR_SYSTEM_PROMPT},
+                {"role": "user", "content": message},
+            ],
+            temperature=0.5,
+            max_tokens=800,
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AI tutor request failed: {exc}",
+        )
+
+    raw_reply = response.choices[0].message.content or ""
+
+    low_confidence_flag = raw_reply.startswith("LOW_CONFIDENCE:")
+    reply = raw_reply.replace("LOW_CONFIDENCE:", "", 1).strip() if low_confidence_flag else raw_reply
+
+    plagiarism_nudge = None
+    if _looks_like_plagiarism_risk(message):
+        plagiarism_nudge = "Try explaining your approach first — I can check your reasoning and point you in the right direction."
+
+    return {
+        "reply": reply,
+        "low_confidence_flag": low_confidence_flag,
+        "plagiarism_nudge": plagiarism_nudge,
+        "model_used": model,
+    }
+
+
+_PLAGIARISM_RISK_PHRASES = (
+    "write the code for me",
+    "give me the answer",
+    "give me the solution",
+    "just do my",
+    "solve this for me",
+    "do my quiz",
+    "do my assignment",
+    "do my capstone",
+    "complete code for",
+)
+
+
+def _looks_like_plagiarism_risk(message: str) -> bool:
+    lowered = message.lower()
+    return any(phrase in lowered for phrase in _PLAGIARISM_RISK_PHRASES)
