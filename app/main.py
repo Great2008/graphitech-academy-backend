@@ -16,9 +16,16 @@ app = FastAPI(
     description="Backend for GraphiTech Academy — Design. Print. Brand. Deploy. Learn.",
 )
 
+def _get_cors_origins() -> list[str]:
+    origins = [settings.FRONTEND_URL]
+    if settings.ADDITIONAL_CORS_ORIGINS:
+        origins += [o.strip() for o in settings.ADDITIONAL_CORS_ORIGINS.split(",") if o.strip()]
+    return origins
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=_get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

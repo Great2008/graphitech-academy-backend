@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     # --- App ---
     ENVIRONMENT: str = "development"
     FRONTEND_URL: str = "http://localhost:5173"
+    # Comma-separated list of additional allowed origins (e.g. custom domain,
+    # mobile app webview origin). FRONTEND_URL is always included automatically.
+    ADDITIONAL_CORS_ORIGINS: str = ""
 
 
 settings = Settings()
