@@ -10,7 +10,7 @@ from typing import Iterable
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -18,11 +18,16 @@ from app.core.security import decode_access_token
 from app.models.user import User
 from app.models.base import UserRole
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
+# HTTPBearer (not OAuth2PasswordBearer) so Swagger's "Authorize" button shows
+# a simple paste-your-token field. OAuth2PasswordBearer would show a
+# username/password form that POSTs form-encoded data to tokenUrl — but our
+# /api/auth/login endpoint takes JSON with "email"/"password", not OAuth2's
+# form-encoded "username"/"password", so that flow doesn't actually work.
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> User:
     credentials_exception = HTTPException(
@@ -30,10 +35,10 @@ def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    if not token:
+    if not credentials:
         raise credentials_exception
 
-    user_id = decode_access_token(token)
+    user_id = decode_access_token(credentials.credentials)
     if user_id is None:
         raise credentials_exception
 
