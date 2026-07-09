@@ -6,7 +6,7 @@ User model. Fields are split conceptually into public (safe to expose on
 flags) — enforced in the Pydantic schema layer, not here.
 """
 
-from sqlalchemy import Column, String, Boolean, Enum, Text
+from sqlalchemy import Column, String, Boolean, Enum, Text, DateTime
 from sqlalchemy.orm import relationship
 
 from app.models.base import Base, UUIDMixin, TimestampMixin, UserRole
@@ -34,6 +34,11 @@ class User(Base, UUIDMixin, TimestampMixin):
     linkedin_url = Column(String, nullable=True)
     state = Column(String, nullable=True)  # for grant-readiness "states reached" metric
     gender = Column(String, nullable=True)  # optional, for women-in-tech impact metrics
+
+    # --- AI tutor premium subscription ---
+    # If set and in the future, user bypasses the free-tier daily rate limit.
+    # Set by the payment webhook when a TUTOR_SUBSCRIPTION payment succeeds.
+    tutor_premium_until = Column(DateTime(timezone=True), nullable=True)
 
     # --- Relationships ---
     enrollments = relationship("Enrollment", back_populates="user")

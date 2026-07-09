@@ -31,6 +31,14 @@ def init_certificate_payment(
     return payment_service.init_certificate_payment(db, current_user, course_id)
 
 
+@router.post("/payments/tutor-subscription", response_model=PaymentInitResponse)
+def init_tutor_subscription_payment(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return payment_service.init_tutor_subscription_payment(db, current_user)
+
+
 @router.post("/payments/webhook", status_code=200)
 async def paystack_webhook(request: Request, db: Session = Depends(get_db)):
     raw_body = await request.body()

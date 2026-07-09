@@ -38,6 +38,7 @@ class Settings(BaseSettings):
 
     # --- Free-tier AI tutor rate limit ---
     TUTOR_FREE_DAILY_LIMIT: int = 15
+    TUTOR_SUBSCRIPTION_PRICE_KOBO: int = 200000  # NGN 2,000/month — adjust as pricing is finalized
 
     # --- App ---
     ENVIRONMENT: str = "development"
