@@ -13,7 +13,7 @@ from app.core.config import settings
 app = FastAPI(
     title="GraphiTech Academy API",
     version="0.1.0",
-    description="Backend for GraphiTech Academy — Design. Print. Brand. Deploy. Learn.",
+    description="Backend for GraphiTech Academy.",
 )
 
 app.add_middleware(
