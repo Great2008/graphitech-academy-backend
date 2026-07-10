@@ -38,7 +38,7 @@ def health_check():
 
 
 # --- Routers (added incrementally as each flow is built) ---
-from app.routers import auth, courses, capstones, payments, certificates, playground, tutor  # noqa: E402
+from app.routers import auth, courses, capstones, payments, certificates, playground, tutor, admin  # noqa: E402
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(courses.router, prefix="/api", tags=["courses"])
@@ -47,3 +47,4 @@ app.include_router(payments.router, prefix="/api", tags=["payments"])
 app.include_router(certificates.router, prefix="/api", tags=["certificates"])
 app.include_router(playground.router, prefix="/api", tags=["playground"])
 app.include_router(tutor.router, prefix="/api", tags=["tutor"])
+app.include_router(admin.router, prefix="/api", tags=["admin"])
