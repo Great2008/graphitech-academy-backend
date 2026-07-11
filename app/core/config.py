@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     SUPABASE_STORAGE_BUCKET: str = "graphitech-academy"
 
     # --- Coding playground ---
+    PISTON_API_URL: str = "https://emkc.org/api/v2/piston"
+    # Legacy Judge0 settings, kept in case of a future switch to self-hosted Judge0.
     JUDGE0_API_URL: str = ""
     JUDGE0_API_KEY: str = ""
 
