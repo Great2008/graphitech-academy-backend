@@ -1,17 +1,22 @@
 """
 app/services/playground_service.py
 
-Wraps the Judge0 API (self-hosted or RapidAPI-hosted) for the coding
-playground. Uses Judge0's synchronous submission mode (?wait=true) so the
-route can return a result in one request/response cycle rather than
-polling — simpler for v1, at the cost of holding the connection open for
-the duration of execution (fine given Judge0's tight time limits).
+Wraps the Piston API (https://github.com/engineer-man/piston) for the
+coding playground — a free, public, no-signup code execution service.
 
-LANGUAGE_MAP keys match what the frontend sends (Lesson.playground_language
-values); values are Judge0's numeric language IDs.
+Piston's supported languages/versions change over time, so rather than
+hardcoding a list that could silently go stale, we query its /runtimes
+endpoint and cache the result in memory. A requested language that isn't
+found gets a clear 400 error listing what IS currently supported, instead
+of a confusing failure deep in the request.
+
+Note: the public Piston API is rate-limited (documented as ~5 requests/
+second per IP). All our students' requests come from this server's IP, so
+if usage grows significantly, self-hosting Piston (or switching to Judge0)
+is worth revisiting — see PISTON_API_URL in settings.
 """
 
-import base64
+import time
 from typing import Optional
 
 import httpx
@@ -20,91 +25,111 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 from app.schemas.playground import PlaygroundRunRequest, PlaygroundRunResponse
 
-# Judge0 CE language IDs — https://ce.judge0.com/ (subset relevant to the academy's tracks)
-LANGUAGE_MAP = {
-    "python": 71,       # Python 3.8.1
-    "javascript": 63,   # Node.js 12.14.0
-    "typescript": 74,   # TypeScript 3.7.4
-    "java": 62,         # Java OpenJDK 13.0.1
-    "c": 50,            # C GCC 9.2.0
-    "cpp": 54,          # C++ GCC 9.2.0
-    "csharp": 51,       # C# Mono 6.6.0.161
-    "go": 60,           # Go 1.13.5
-    "ruby": 72,         # Ruby 2.7.0
-    "php": 68,          # PHP 7.4.1
-    "sql": 82,          # SQLite 3.27.2
+# Our own language keys (what the frontend sends, matching
+# Lesson.playground_language) mapped to Piston's language names.
+# Piston's /runtimes also returns "aliases" we fall back to matching against.
+LANGUAGE_ALIASES = {
+    "python": "python",
+    "javascript": "javascript",
+    "typescript": "typescript",
+    "java": "java",
+    "c": "c",
+    "cpp": "c++",
+    "csharp": "csharp",
+    "go": "go",
+    "ruby": "ruby",
+    "php": "php",
 }
 
-
-def _encode(text: Optional[str]) -> Optional[str]:
-    if text is None:
-        return None
-    return base64.b64encode(text.encode("utf-8")).decode("ascii")
+_runtimes_cache: Optional[list] = None
+_runtimes_cache_time: float = 0
+_RUNTIMES_CACHE_TTL_SECONDS = 3600  # refresh hourly, in case Piston updates versions
 
 
-def _decode(text: Optional[str]) -> Optional[str]:
-    if text is None:
-        return None
-    try:
-        return base64.b64decode(text).decode("utf-8", errors="replace")
-    except Exception:  # noqa: BLE001 — malformed base64 shouldn't crash the response
-        return text
+def _get_runtimes() -> list:
+    global _runtimes_cache, _runtimes_cache_time
 
-
-def run_code(run_request: PlaygroundRunRequest) -> PlaygroundRunResponse:
-    if not settings.JUDGE0_API_URL:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Coding playground is not configured (missing JUDGE0_API_URL)",
-        )
-
-    language_id = LANGUAGE_MAP.get(run_request.language.lower())
-    if language_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported language '{run_request.language}'. Supported: {', '.join(LANGUAGE_MAP)}",
-        )
-
-    headers = {"Content-Type": "application/json"}
-    if settings.JUDGE0_API_KEY:
-        # RapidAPI-hosted Judge0 uses these headers; self-hosted instances ignore them.
-        headers["X-RapidAPI-Key"] = settings.JUDGE0_API_KEY
-        headers["X-RapidAPI-Host"] = "judge0-ce.p.rapidapi.com"
-
-    payload = {
-        "language_id": language_id,
-        "source_code": _encode(run_request.source_code),
-        "stdin": _encode(run_request.stdin),
-    }
+    if _runtimes_cache is not None and (time.time() - _runtimes_cache_time) < _RUNTIMES_CACHE_TTL_SECONDS:
+        return _runtimes_cache
 
     try:
-        response = httpx.post(
-            f"{settings.JUDGE0_API_URL}/submissions",
-            params={"base64_encoded": "true", "wait": "true"},
-            headers=headers,
-            json=payload,
-            timeout=20.0,
-        )
+        response = httpx.get(f"{settings.PISTON_API_URL}/runtimes", timeout=10.0)
+        response.raise_for_status()
     except httpx.RequestError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Could not reach the code execution service: {exc}",
         )
 
-    if response.status_code not in (200, 201):
+    _runtimes_cache = response.json()
+    _runtimes_cache_time = time.time()
+    return _runtimes_cache
+
+
+def _resolve_language(requested: str) -> tuple[str, str]:
+    """Returns (piston_language, latest_version) for a requested language key."""
+    piston_name = LANGUAGE_ALIASES.get(requested.lower(), requested.lower())
+    runtimes = _get_runtimes()
+
+    matches = [
+        rt for rt in runtimes
+        if rt.get("language") == piston_name or piston_name in rt.get("aliases", [])
+    ]
+
+    if not matches:
+        supported = sorted({rt["language"] for rt in runtimes})
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported language '{requested}'. Supported: {', '.join(supported)}",
+        )
+
+    # Piston can list multiple versions per language — take the latest.
+    latest = sorted(matches, key=lambda rt: rt.get("version", ""))[-1]
+    return latest["language"], latest["version"]
+
+
+def run_code(run_request: PlaygroundRunRequest) -> PlaygroundRunResponse:
+    language, version = _resolve_language(run_request.language)
+
+    payload = {
+        "language": language,
+        "version": version,
+        "files": [{"content": run_request.source_code}],
+        "stdin": run_request.stdin or "",
+    }
+
+    try:
+        response = httpx.post(f"{settings.PISTON_API_URL}/execute", json=payload, timeout=20.0)
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Could not reach the code execution service: {exc}",
+        )
+
+    if response.status_code != 200:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Code execution service returned an unexpected error (status {response.status_code})",
         )
 
     data = response.json()
-    status_info = data.get("status", {})
+    run_result = data.get("run", {})
+    compile_result = data.get("compile")
+
+    if compile_result and compile_result.get("code", 0) != 0:
+        exec_status = "Compilation Error"
+    elif run_result.get("signal"):
+        exec_status = f"Terminated ({run_result['signal']})"
+    elif run_result.get("code", 0) == 0:
+        exec_status = "Accepted"
+    else:
+        exec_status = "Runtime Error"
 
     return PlaygroundRunResponse(
-        status=status_info.get("description", "Unknown"),
-        stdout=_decode(data.get("stdout")),
-        stderr=_decode(data.get("stderr")),
-        compile_output=_decode(data.get("compile_output")),
-        time_seconds=float(data["time"]) if data.get("time") else None,
-        memory_kb=int(data["memory"]) if data.get("memory") else None,
+        status=exec_status,
+        stdout=run_result.get("stdout"),
+        stderr=run_result.get("stderr"),
+        compile_output=compile_result.get("stderr") if compile_result else None,
+        time_seconds=None,  # Piston doesn't report execution time
+        memory_kb=None,     # or memory usage, unlike Judge0
     )
