@@ -154,7 +154,7 @@ def handle_successful_payment(db: Session, reference: str, channel: str, raw_pay
 
     if payment.purpose == PaymentPurpose.CERTIFICATE:
         from app.services import certificate_service
-        certificate_service.issue_certificate(db, payment)
+        certificate_service.issue_certificate(db, payment.user_id, payment.course_id, payment=payment)
     elif payment.purpose == PaymentPurpose.TUTOR_SUBSCRIPTION:
         _extend_tutor_premium(db, payment)
 
