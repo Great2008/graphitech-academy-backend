@@ -3,7 +3,6 @@ services:
     name: graphitech-academy-backend
     runtime: docker
     plan: free
-    healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
         sync: false
