@@ -27,6 +27,15 @@ from app.services import certificate_service
 router = APIRouter()
 
 
+@router.post("/certificates/claim/{course_id}", response_model=CertificateRead)
+def claim_free_certificate(
+    course_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return certificate_service.claim_free_certificate(db, current_user.id, course_id)
+
+
 @router.get("/verify/{certificate_number}", response_model=CertificateVerifyPublic)
 def verify_certificate(certificate_number: str, db: Session = Depends(get_db)):
     return certificate_service.verify_certificate(db, certificate_number)
