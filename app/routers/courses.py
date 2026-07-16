@@ -65,6 +65,11 @@ def get_course(slug: str, db: Session = Depends(get_db)):
 
 # --- Student routes ---
 
+@router.get("/courses/{course_id}/enrollment", response_model=EnrollmentRead)
+def get_my_enrollment(course_id: UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return enrollment_service.get_enrollment(db, current_user.id, course_id)
+
+
 @router.post("/courses/{course_id}/enroll", response_model=EnrollmentRead, status_code=201)
 def enroll(course_id: UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return enrollment_service.enroll_user(db, current_user.id, course_id)
