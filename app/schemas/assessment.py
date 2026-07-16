@@ -4,6 +4,7 @@ app/schemas/assessment.py
 
 from typing import Optional, List, Any, Dict
 from uuid import UUID
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 
@@ -56,7 +57,7 @@ class QuizAttemptRead(TimestampedRead):
     user_id: UUID
     score_percent: int
     status: QuizAttemptStatus
-    submitted_at: Optional[str] = None
+    submitted_at: Optional[datetime] = None
 
 
 # --- Capstone ---

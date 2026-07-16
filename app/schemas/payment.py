@@ -4,6 +4,7 @@ app/schemas/payment.py
 
 from typing import Optional, Any, Dict
 from uuid import UUID
+from datetime import datetime
 
 from pydantic import BaseModel
 
@@ -38,4 +39,4 @@ class PaymentRead(TimestampedRead):
     status: PaymentStatus
     paystack_reference: Optional[str] = None
     paystack_channel: Optional[str] = None
-    paid_at: Optional[str] = None
+    paid_at: Optional[datetime] = None

@@ -8,6 +8,7 @@ the whole point is that employers can check it. Deliberately minimal.
 
 from typing import Optional
 from uuid import UUID
+from datetime import datetime
 
 from pydantic import BaseModel
 
@@ -34,7 +35,7 @@ class CertificateRead(TimestampedRead):
     course_title_snapshot: str
     grade_percent: Optional[int] = None
     status: CertificateStatus
-    issued_at: Optional[str] = None
+    issued_at: Optional[datetime] = None
     pdf_url: Optional[str] = None
     qr_code_url: Optional[str] = None
 
@@ -46,4 +47,4 @@ class CertificateVerifyPublic(ORMBase):
     course_title_snapshot: str
     grade_percent: Optional[int] = None
     status: CertificateStatus
-    issued_at: Optional[str] = None
+    issued_at: Optional[datetime] = None

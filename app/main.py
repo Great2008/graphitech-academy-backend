@@ -32,11 +32,6 @@ app.add_middleware(
 )
 
 
-@app.get("/health")
-def health_check():
-    return {"status": "ok", "environment": settings.ENVIRONMENT}
-
-
 # --- Routers (added incrementally as each flow is built) ---
 from app.routers import auth, courses, capstones, payments, certificates, playground, tutor, admin  # noqa: E402
 

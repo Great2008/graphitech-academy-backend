@@ -4,6 +4,7 @@ app/schemas/badge.py
 
 from typing import Optional
 from uuid import UUID
+from datetime import datetime
 
 from pydantic import BaseModel
 
@@ -28,4 +29,4 @@ class BadgeRead(TimestampedRead):
 class UserBadgeRead(ORMBase):
     """Shown on public portfolio pages — badge details flattened in, no raw IDs needed by the client."""
     badge: BadgeRead
-    earned_at: Optional[str] = None
+    earned_at: Optional[datetime] = None
