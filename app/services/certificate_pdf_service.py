@@ -62,6 +62,19 @@ def _render_certificate_html(certificate: Certificate, qr_data_uri: str) -> str:
     )
 
 
+def render_certificate_pdf_bytes(certificate: Certificate) -> bytes:
+    """
+    Generates the certificate PDF fresh, in-memory, no storage involved.
+    Used by the on-demand download endpoint — this way downloads work
+    regardless of whether the async asset-generation step at issuance
+    time (generate_and_upload_certificate_assets) succeeded or not.
+    """
+    verification_url = f"{settings.FRONTEND_URL}/verify/{certificate.certificate_number}"
+    qr_data_uri = _generate_qr_data_uri(verification_url)
+    html_content = _render_certificate_html(certificate, qr_data_uri)
+    return HTML(string=html_content, base_url=str(TEMPLATE_DIR)).write_pdf()
+
+
 def generate_and_upload_certificate_assets(certificate: Certificate) -> dict:
     """
     Returns {"pdf_url": ..., "qr_code_url": ...}. Raises if Supabase storage
