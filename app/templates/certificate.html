@@ -5,14 +5,16 @@ Jinja2 template rendered to HTML, then converted to PDF via WeasyPrint.
 Variables: student_name, course_title, certificate_number, issued_date,
 qr_code_data_uri, grade_percent (optional).
 
-Palette matches GraphiTech Command branding — purple/violet/sky blue.
-Layout uses flexbox to distribute content across the full A4 landscape
-canvas rather than leaving a large empty gap in the middle.
+Green/gold formal certificate design. All graphics (logo mark, seal
+medallion, corner ribbons, watermark, signature scribble) are hand-built
+inline SVG -- no external image assets required.
 -->
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Alex+Brush&family=Poppins:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   @page {
     size: A4 landscape;
@@ -21,18 +23,16 @@ canvas rather than leaving a large empty gap in the middle.
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: 'Helvetica Neue', Arial, sans-serif;
-    background: #e2e8f0;
+    font-family: 'Poppins', sans-serif;
+    background: #ffffff;
   }
-  /* When opened directly in a browser (not printed to PDF), center a
-     properly-proportioned A4-landscape rectangle instead of stretching
-     the certificate across the full device viewport height. */
   @media screen {
     body {
       display: flex;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
+      background: #e2e8f0;
       padding: 16px;
     }
     .certificate {
@@ -40,128 +40,231 @@ canvas rather than leaving a large empty gap in the middle.
       max-width: 1122px;
       aspect-ratio: 297 / 210;
       height: auto;
-      box-shadow: 0 4px 24px rgba(76, 29, 149, 0.15);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.15);
     }
   }
   @media print {
-    .certificate {
-      width: 100%;
-      height: 100vh;
-    }
+    .certificate { width: 100%; height: 100vh; }
   }
+
   .certificate {
-    background: linear-gradient(135deg, #f5f3ff 0%, #eef2ff 50%, #f0f9ff 100%);
-    padding: 50px 80px;
-    border: 10px solid #7c3aed;
-    outline: 2px solid #38bdf8;
-    outline-offset: -20px;
     position: relative;
+    background: #ffffff;
+    overflow: hidden;
+    border: 3px solid #c9a227;
+    padding: 14px;
+  }
+  .inner-border {
+    position: absolute;
+    inset: 8px;
+    border: 1px solid #c9a227;
+    pointer-events: none;
+  }
+
+  .corner-ribbon {
+    position: absolute;
+    width: 260px;
+    height: 260px;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .corner-ribbon--tl { top: -60px; left: -60px; transform: rotate(0deg); }
+  .corner-ribbon--br { bottom: -60px; right: -60px; transform: rotate(180deg); }
+
+  .watermark {
+    position: absolute;
+    right: 40px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 380px;
+    height: 380px;
+    opacity: 0.045;
+    z-index: 0;
+  }
+
+  .content {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    padding: 26px 60px 20px 60px;
+    text-align: center;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    align-items: center;
   }
 
-  /* --- Header --- */
-  .header { text-align: center; }
-  .brand { font-size: 14px; letter-spacing: 4px; color: #7c3aed; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
-  .tagline { font-size: 11px; color: #64748b; letter-spacing: 2px; }
+  .header { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 10px; }
+  .logo-mark { width: 50px; height: 50px; flex-shrink: 0; }
+  .wordmark-text { text-align: left; }
+  .wordmark-text .brand { font-size: 26px; font-weight: 700; color: #14532d; letter-spacing: 0.5px; }
+  .wordmark-text .brand .light { font-weight: 400; color: #1f2937; }
+  .wordmark-text .tagline { font-size: 11px; color: #15803d; letter-spacing: 2px; font-weight: 500; margin-top: 1px; }
 
-  /* --- Body: title + name + course, vertically centered in remaining space --- */
-  .body-content { text-align: center; }
-  .title { font-size: 34px; font-weight: 800; color: #1e1b4b; margin-bottom: 6px; }
-  .subtitle { font-size: 14px; color: #475569; margin-bottom: 28px; }
-  .student-name { font-size: 44px; font-weight: 700; color: #4c1d95; border-bottom: 2px solid #a78bfa; display: inline-block; padding: 0 24px 12px 24px; margin-bottom: 28px; }
-  .course-label { font-size: 14px; color: #475569; margin-bottom: 6px; }
-  .course-title { font-size: 24px; color: #0369a1; font-weight: 700; margin-bottom: 10px; }
-  .grade { font-size: 14px; color: #64748b; }
-
-  /* --- Seal + divider row, fills the middle-lower space meaningfully --- */
-  .seal-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 24px;
-    margin-top: 20px;
-  }
-  .seal {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    border: 3px solid #7c3aed;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 9px;
+  .title {
+    font-family: 'Playfair Display', serif;
     font-weight: 700;
-    color: #7c3aed;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    text-align: center;
-    line-height: 1.3;
+    font-size: 42px;
+    color: #14532d;
+    margin: 6px 0 10px 0;
   }
-  .seal-line { width: 140px; height: 1px; background: #c4b5fd; }
+  .divider { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 16px; }
+  .divider .line { width: 130px; height: 1px; background: #c9a227; }
+  .divider .star { color: #c9a227; font-size: 16px; }
 
-  /* --- Footer: signature line, cert number, QR --- */
+  .subtitle { font-size: 15px; color: #374151; margin-bottom: 6px; }
+  .student-name {
+    font-family: 'Alex Brush', cursive;
+    font-size: 56px;
+    color: #14532d;
+    margin: 2px 0 6px 0;
+    line-height: 1;
+  }
+  .name-underline { width: 320px; height: 1px; background: #15803d; margin: 0 auto 16px auto; }
+
+  .body-line { font-size: 14px; color: #374151; margin-bottom: 4px; }
+  .course-title { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 22px; color: #111827; margin-bottom: 8px; }
+  .desc-line { font-size: 12.5px; color: #4b5563; max-width: 560px; line-height: 1.5; margin: 0 auto; }
+
   .footer {
+    margin-top: auto;
+    padding-top: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+  .signature-block { text-align: center; width: 160px; }
+  .signature-scribble { height: 34px; margin-bottom: 2px; }
+  .signature-line { width: 140px; border-top: 1px solid #9ca3af; margin: 0 auto 4px auto; }
+  .signature-label { font-size: 10.5px; color: #6b7280; }
+
+  .seal { width: 92px; height: 110px; }
+
+  .verified-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: 1.5px solid #15803d;
+    border-radius: 999px;
+    padding: 7px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #14532d;
+    letter-spacing: 0.5px;
+  }
+  .verified-badge svg { width: 15px; height: 15px; }
+
+  .qr-block { text-align: right; width: 160px; }
+  .qr-frame {
+    display: inline-block;
+    border: 1.5px solid #14532d;
+    border-radius: 8px;
+    padding: 5px;
+  }
+  .qr-frame img { width: 66px; height: 66px; display: block; }
+
+  .meta-row {
+    width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
+    margin-top: 10px;
+    font-size: 10.5px;
+    color: #374151;
   }
-  .signature-block { text-align: left; }
-  .signature-line { width: 180px; border-bottom: 1px solid #94a3b8; margin-bottom: 6px; height: 28px; }
-  .signature-label { font-size: 10px; color: #64748b; }
-
-  .cert-meta { text-align: center; }
-  .cert-number { font-size: 11px; color: #64748b; }
-  .issued-date { font-size: 11px; color: #64748b; margin-top: 4px; }
-
-  .qr-block { text-align: right; }
-  .qr { width: 76px; height: 76px; }
-  .verify-note { font-size: 9px; color: #94a3b8; margin-top: 4px; max-width: 200px; }
+  .meta-row strong { color: #14532d; }
+  .meta-right { text-align: right; }
 </style>
 </head>
 <body>
   <div class="certificate">
+    <div class="inner-border"></div>
 
-    <div class="header">
-      <div class="brand">GraphiTech Academy</div>
-      <div class="tagline">Learn &middot; Build &middot; Earn &middot; Give Back</div>
-    </div>
+    <svg class="corner-ribbon corner-ribbon--tl" viewBox="0 0 260 260">
+      <polygon points="0,0 150,0 0,150" fill="#14532d"/>
+      <polygon points="0,0 110,0 0,110" fill="#1d7a4c"/>
+      <polygon points="95,0 110,0 0,110 0,95" fill="#c9a227"/>
+    </svg>
+    <svg class="corner-ribbon corner-ribbon--br" viewBox="0 0 260 260">
+      <polygon points="0,0 150,0 0,150" fill="#14532d"/>
+      <polygon points="0,0 110,0 0,110" fill="#1d7a4c"/>
+      <polygon points="95,0 110,0 0,110 0,95" fill="#c9a227"/>
+    </svg>
 
-    <div class="body-content">
-      <div class="title">Certificate of Completion</div>
-      <div class="subtitle">This certifies that</div>
-      <div class="student-name">{{ student_name }}</div>
-      <div class="course-label">has successfully completed</div>
-      <div class="course-title">{{ course_title }}</div>
-      {% if grade_percent %}
-      <div class="grade">Final Grade: {{ grade_percent }}%</div>
-      {% endif %}
+    <svg class="watermark" viewBox="0 0 200 200">
+      <path d="M100 10 L180 40 L180 100 C180 150 145 180 100 195 C55 180 20 150 20 100 L20 40 Z" fill="#14532d"/>
+      <text x="100" y="130" font-family="Poppins, sans-serif" font-weight="700" font-size="110" fill="#ffffff" text-anchor="middle">G</text>
+    </svg>
 
-      <div class="seal-row">
-        <div class="seal-line"></div>
-        <div class="seal">GTA<br>Verified</div>
-        <div class="seal-line"></div>
+    <div class="content">
+      <div class="header">
+        <svg class="logo-mark" viewBox="0 0 100 100">
+          <path d="M50 5 L92 22 L92 55 C92 75 73 90 50 97 C27 90 8 75 8 55 L8 22 Z" fill="#14532d"/>
+          <text x="50" y="66" font-family="Poppins, sans-serif" font-weight="700" font-size="46" fill="#ffffff" text-anchor="middle">G</text>
+          <rect x="30" y="8" width="40" height="7" rx="1" fill="#c9a227"/>
+          <polygon points="50,2 65,10 50,18 35,10" fill="#0b3d2e"/>
+        </svg>
+        <div class="wordmark-text">
+          <div class="brand">GRAPHITECH<span class="light"> ACADEMY</span></div>
+          <div class="tagline">LEARN &middot; BUILD &middot; EARN &middot; GIVE BACK</div>
+        </div>
+      </div>
+
+      <h1 class="title">Certificate of Completion</h1>
+      <div class="divider"><span class="line"></span><span class="star">&#9733;</span><span class="line"></span></div>
+
+      <p class="subtitle">This certifies that</p>
+      <p class="student-name">{{ student_name }}</p>
+      <div class="name-underline"></div>
+
+      <p class="body-line">has successfully completed</p>
+      <p class="course-title">{{ course_title }}</p>
+      <p class="desc-line">
+        and has demonstrated essential knowledge and practical skills required
+        to complete this course{% if grade_percent %}, with a final grade of {{ grade_percent }}%{% endif %}.
+      </p>
+
+      <div class="footer">
+        <div class="signature-block">
+          <svg class="signature-scribble" viewBox="0 0 140 34">
+            <path d="M5 25 C 15 5, 25 5, 32 20 C 38 32, 45 10, 52 15 C 58 19, 62 8, 70 12 C 80 17, 85 5, 95 10 C 105 15, 112 22, 130 8"
+                  fill="none" stroke="#14532d" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <div class="signature-line"></div>
+          <p class="signature-label">Academy Director</p>
+        </div>
+
+        <svg class="seal" viewBox="0 0 92 110">
+          <circle cx="46" cy="42" r="38" fill="#14532d" stroke="#c9a227" stroke-width="3"/>
+          <circle cx="46" cy="42" r="30" fill="none" stroke="#c9a227" stroke-width="1"/>
+          <text x="46" y="50" font-family="Poppins, sans-serif" font-weight="700" font-size="26" fill="#ffffff" text-anchor="middle">G</text>
+          <polygon points="18,72 30,100 46,88 62,100 74,72" fill="#c9a227" opacity="0.9"/>
+          <polygon points="24,72 34,96 46,88 58,96 68,72" fill="#14532d"/>
+        </svg>
+
+        <div class="verified-badge">
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="11" fill="#15803d"/>
+            <path d="M7 12.5L10.5 16L17 8.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          GTA VERIFIED
+        </div>
+
+        <div class="qr-block">
+          <div class="qr-frame">
+            <img src="{{ qr_code_data_uri }}" alt="Verification QR code" />
+          </div>
+        </div>
+      </div>
+
+      <div class="meta-row">
+        <p>Certificate No. <strong>{{ certificate_number }}</strong></p>
+        <p class="meta-right">
+          Issued <strong>{{ issued_date }}</strong><br/>
+          Verify at <strong>graphitechacademy.org/verify/{{ certificate_number }}</strong>
+        </p>
       </div>
     </div>
-
-    <div class="footer">
-      <div class="signature-block">
-        <div class="signature-line"></div>
-        <div class="signature-label">Academy Director</div>
-      </div>
-
-      <div class="cert-meta">
-        <div class="cert-number">Certificate No. {{ certificate_number }}</div>
-        <div class="issued-date">Issued {{ issued_date }}</div>
-      </div>
-
-      <div class="qr-block">
-        <img class="qr" src="{{ qr_code_data_uri }}" alt="Verification QR code" />
-        <div class="verify-note">Verify at graphitechacademy.org/verify/{{ certificate_number }}</div>
-      </div>
-    </div>
-
   </div>
 </body>
 </html>
