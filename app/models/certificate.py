@@ -8,7 +8,7 @@ Certificates are issued only after:
 
 certificate_number is the human-readable ID shown on the PDF and used in
 the public verification URL, e.g.:
-  https://graphitechacademy.org/verify/GTA-2026-WD-000123
+  https://graphitechfoundation.org/verify/GTF-2026-WD-000123
 
 qr_code_url points to a generated QR image encoding the verification URL.
 """
@@ -28,7 +28,7 @@ class Certificate(Base, UUIDMixin, TimestampMixin):
     enrollment_id = Column(UUID(as_uuid=True), ForeignKey("enrollments.id"), nullable=False)
     payment_id = Column(UUID(as_uuid=True), ForeignKey("payments.id"), nullable=True)
 
-    # e.g. "GTA-2026-WD-000123" — GTA / year / course-code / sequence
+    # e.g. "GTF-2026-WD-000123" — GTA / year / course-code / sequence
     certificate_number = Column(String, unique=True, nullable=False, index=True)
 
     student_name_snapshot = Column(String, nullable=False)  # frozen at issue time

@@ -2,8 +2,8 @@
 app/services/certificate_service.py
 
 Issues certificates once payment is confirmed. certificate_number format:
-  GTA-{year}-{course_code}-{6-digit sequence}
-  e.g. GTA-2026-WD-000123
+  GTF-{year}-{course_code}-{6-digit sequence}
+  e.g. GTF-2026-WD-000123
 
 course_code is derived from the course slug (first letters of each word,
 uppercased) — simple and stable enough for v1; can be made explicit on
@@ -38,7 +38,7 @@ def _generate_course_code(course_slug: str) -> str:
 
 
 def _next_sequence_number(db: Session, year: int) -> int:
-    prefix = f"GTA-{year}-"
+    prefix = f"GTF-{year}-"
     count = (
         db.query(func.count(Certificate.id))
         .filter(Certificate.certificate_number.like(f"{prefix}%"))
@@ -84,7 +84,7 @@ def issue_certificate(db: Session, user_id: UUID, course_id: UUID, payment: Opti
     year = datetime.now(timezone.utc).year
     course_code = _generate_course_code(course.slug)
     sequence = _next_sequence_number(db, year)
-    certificate_number = f"GTA-{year}-{course_code}-{sequence:06d}"
+    certificate_number = f"GTF-{year}-{course_code}-{sequence:06d}"
 
     certificate = Certificate(
         user_id=user.id,

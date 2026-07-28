@@ -11,9 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 
 app = FastAPI(
-    title="GraphiTech Academy API",
+    title="GraphiTech Foundation API",
     version="0.1.0",
-    description="Backend for GraphiTech Academy — Design. Print. Brand. Deploy. Learn.",
+    description="Backend for GraphiTech Foundation — Design. Print. Brand. Deploy. Learn.",
 )
 
 def _get_cors_origins() -> list[str]:

@@ -1,6 +1,6 @@
-# GraphiTech Academy — Backend
+# GraphiTech Foundation — Backend
 
-FastAPI backend for GraphiTech Academy.
+FastAPI backend for GraphiTech Foundation.
 
 ## Stack
 - FastAPI + SQLAlchemy 2.0 + Alembic

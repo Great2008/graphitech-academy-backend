@@ -25,7 +25,7 @@ def get_storage_client() -> Client:
 def upload_file(path: str, content: bytes, content_type: str) -> str:
     """
     Uploads a file to the configured storage bucket and returns its public URL.
-    `path` should be a storage-relative path, e.g. "certificates/GTA-2026-WD-000123.pdf".
+    `path` should be a storage-relative path, e.g. "certificates/GTF-2026-WD-000123.pdf".
     """
     client = get_storage_client()
     bucket = client.storage.from_(settings.SUPABASE_STORAGE_BUCKET)

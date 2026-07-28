@@ -1,7 +1,7 @@
 """
 app/models/base.py
 
-Shared SQLAlchemy base, mixins, and enums used across GraphiTech Academy models.
+Shared SQLAlchemy base, mixins, and enums used across GraphiTech Foundation models.
 """
 
 import uuid

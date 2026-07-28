@@ -22,7 +22,7 @@ from app.schemas.learning import CourseAIDraftRequest
 
 GROQ_MODEL = "llama-3.3-70b-versatile"
 
-SYSTEM_PROMPT = """You are a curriculum designer for GraphiTech Academy, a coding education \
+SYSTEM_PROMPT = """You are a curriculum designer for GraphiTech Foundation, a coding education \
 platform. Given a topic, produce a structured course outline as STRICT JSON only — no \
 markdown fences, no commentary, no preamble.
 
@@ -131,7 +131,7 @@ def _validate_draft_shape(draft: dict) -> None:
 # AI Tutor chat
 # ---------------------------------------------------------------------------
 
-TUTOR_SYSTEM_PROMPT = """You are the GraphiTech Academy AI Tutor, helping students learn to code. \
+TUTOR_SYSTEM_PROMPT = """You are the GraphiTech Foundation AI Tutor, helping students learn to code. \
 Follow these rules strictly:
 
 1. NEVER simply hand over a complete solution to a quiz question, exercise, or capstone \

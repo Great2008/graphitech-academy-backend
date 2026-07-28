@@ -43,7 +43,7 @@ def init_certificate_payment(db: Session, user: User, course_id: uuid.UUID) -> d
             detail="You are not yet eligible for this certificate. Complete all lessons and the capstone first.",
         )
 
-    reference = f"GTA-{uuid.uuid4().hex[:16]}"
+    reference = f"GTF-{uuid.uuid4().hex[:16]}"
 
     payment = Payment(
         user_id=user.id,
@@ -85,7 +85,7 @@ def init_certificate_payment(db: Session, user: User, course_id: uuid.UUID) -> d
 
 
 def init_tutor_subscription_payment(db: Session, user: User) -> dict:
-    reference = f"GTA-{uuid.uuid4().hex[:16]}"
+    reference = f"GTF-{uuid.uuid4().hex[:16]}"
 
     payment = Payment(
         user_id=user.id,

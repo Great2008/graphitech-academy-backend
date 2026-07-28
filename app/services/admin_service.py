@@ -19,7 +19,11 @@ from app.models.learning import Course, Lesson
 from app.models.enrollment import Enrollment, Progress
 from app.models.certificate import Certificate
 from app.models.assessment import CapstoneSubmission
+from app.models.payment import Payment
 from app.schemas.admin import DashboardStats, StudentListItem, StudentDetail, EnrollmentProgress
+from app.schemas.user import UserRead
+from app.schemas.certificate import CertificateRead
+from app.schemas.payment import PaymentRead
 
 
 def get_dashboard_stats(db: Session) -> DashboardStats:
@@ -142,3 +146,61 @@ def get_student_detail(db: Session, user_id: UUID) -> StudentDetail:
         role=student.role.value,
         enrollments=enrollment_progress,
     )
+
+
+# ---------------------------------------------------------------------------
+# User role management
+# ---------------------------------------------------------------------------
+
+# Roles an ADMIN (not SUPER_ADMIN) is allowed to grant. Only a SUPER_ADMIN
+# can promote someone to ADMIN or SUPER_ADMIN — this stops a regular admin
+# from escalating their own privileges or minting more admins.
+ADMIN_GRANTABLE_ROLES = {
+    UserRole.STUDENT, UserRole.INSTRUCTOR, UserRole.REVIEWER, UserRole.MODERATOR,
+}
+
+
+def list_all_users(db: Session) -> List[UserRead]:
+    users = db.query(User).order_by(User.created_at.desc()).all()
+    return [UserRead.model_validate(u) for u in users]
+
+
+def update_user_role(db: Session, target_user_id: UUID, new_role: UserRole, acting_user: User) -> UserRead:
+    if new_role not in ADMIN_GRANTABLE_ROLES and acting_user.role != UserRole.SUPER_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only a Super Admin can grant Admin or Super Admin roles",
+        )
+
+    target_user = db.query(User).filter(User.id == target_user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if target_user.id == acting_user.id and new_role != acting_user.role:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot change your own role",
+        )
+
+    target_user.role = new_role
+    db.commit()
+    db.refresh(target_user)
+    return UserRead.model_validate(target_user)
+
+
+# ---------------------------------------------------------------------------
+# Certificates (admin view)
+# ---------------------------------------------------------------------------
+
+def list_all_certificates(db: Session) -> List[CertificateRead]:
+    certificates = db.query(Certificate).order_by(Certificate.created_at.desc()).all()
+    return [CertificateRead.model_validate(c) for c in certificates]
+
+
+# ---------------------------------------------------------------------------
+# Payments (admin view)
+# ---------------------------------------------------------------------------
+
+def list_all_payments(db: Session) -> List[PaymentRead]:
+    payments = db.query(Payment).order_by(Payment.created_at.desc()).all()
+    return [PaymentRead.model_validate(p) for p in payments]

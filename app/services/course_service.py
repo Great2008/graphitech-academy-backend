@@ -18,7 +18,10 @@ from app.core.utils import slugify
 from app.models.learning import Course, Lesson, LearningPath
 from app.models.assessment import Quiz
 from app.models.base import CourseStatus
-from app.schemas.learning import CourseCreate, CourseUpdate, LessonCreate, LessonUpdate, CourseAIDraftRequest
+from app.schemas.learning import (
+    CourseCreate, CourseUpdate, LessonCreate, LessonUpdate, CourseAIDraftRequest,
+    LearningPathCreate, LearningPathUpdate,
+)
 
 
 def get_learning_paths(db: Session, published_only: bool = True) -> List[LearningPath]:
@@ -26,6 +29,36 @@ def get_learning_paths(db: Session, published_only: bool = True) -> List[Learnin
     if published_only:
         query = query.filter(LearningPath.is_published.is_(True))
     return query.order_by(LearningPath.order_index).all()
+
+
+def list_all_learning_paths_admin(db: Session) -> List[LearningPath]:
+    """Staff-only: every learning path regardless of published status."""
+    return db.query(LearningPath).order_by(LearningPath.order_index).all()
+
+
+def create_learning_path(db: Session, path_in: LearningPathCreate) -> LearningPath:
+    existing = db.query(LearningPath).filter(LearningPath.slug == path_in.slug).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A learning path with this slug already exists",
+        )
+    path = LearningPath(**path_in.model_dump())
+    db.add(path)
+    db.commit()
+    db.refresh(path)
+    return path
+
+
+def update_learning_path(db: Session, path_id: UUID, updates: LearningPathUpdate) -> LearningPath:
+    path = db.query(LearningPath).filter(LearningPath.id == path_id).first()
+    if not path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Learning path not found")
+    for field, value in updates.model_dump(exclude_unset=True).items():
+        setattr(path, field, value)
+    db.commit()
+    db.refresh(path)
+    return path
 
 
 def get_course_by_slug(db: Session, slug: str) -> Optional[Course]:

@@ -29,7 +29,7 @@ from app.dependencies import get_current_user, require_role
 from app.models.base import UserRole
 from app.models.user import User
 from app.schemas.learning import (
-    LearningPathRead, CourseRead, CourseWithLessons, CourseCreate, CourseUpdate,
+    LearningPathRead, LearningPathCreate, LearningPathUpdate, CourseRead, CourseWithLessons, CourseCreate, CourseUpdate,
     CourseAIDraftRequest, LessonCreate, LessonUpdate, LessonRead,
 )
 from app.schemas.enrollment import EnrollmentRead, ProgressUpdate, ProgressRead
@@ -45,6 +45,34 @@ STAFF_ROLES = (UserRole.INSTRUCTOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)
 @router.get("/learning-paths", response_model=List[LearningPathRead])
 def list_learning_paths(db: Session = Depends(get_db)):
     return course_service.get_learning_paths(db)
+
+
+@router.get(
+    "/admin/learning-paths",
+    response_model=List[LearningPathRead],
+    dependencies=[Depends(require_role(*STAFF_ROLES))],
+)
+def list_all_learning_paths_admin(db: Session = Depends(get_db)):
+    return course_service.list_all_learning_paths_admin(db)
+
+
+@router.post(
+    "/learning-paths",
+    response_model=LearningPathRead,
+    status_code=201,
+    dependencies=[Depends(require_role(*STAFF_ROLES))],
+)
+def create_learning_path(path_in: LearningPathCreate, db: Session = Depends(get_db)):
+    return course_service.create_learning_path(db, path_in)
+
+
+@router.patch(
+    "/learning-paths/{path_id}",
+    response_model=LearningPathRead,
+    dependencies=[Depends(require_role(*STAFF_ROLES))],
+)
+def update_learning_path(path_id: UUID, updates: LearningPathUpdate, db: Session = Depends(get_db)):
+    return course_service.update_learning_path(db, path_id, updates)
 
 
 @router.get("/courses", response_model=List[CourseRead])
