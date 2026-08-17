@@ -29,11 +29,12 @@ from app.dependencies import get_current_user, require_role
 from app.models.base import UserRole
 from app.models.user import User
 from app.schemas.learning import (
-    LearningPathRead, LearningPathCreate, LearningPathUpdate, CourseRead, CourseWithLessons, CourseCreate, CourseUpdate,
+    LearningPathRead, CourseRead, CourseWithLessons, CourseCreate, CourseUpdate,
     CourseAIDraftRequest, LessonCreate, LessonUpdate, LessonRead,
 )
-from app.schemas.enrollment import EnrollmentRead, ProgressUpdate, ProgressRead
-from app.services import course_service, enrollment_service, ai_service
+from app.schemas.enrollment import EnrollmentRead, LessonProgressPing, ProgressRead
+from app.schemas.assessment import QuizPublicRead, QuizAttemptRead, QuizAttemptSubmit
+from app.services import course_service, enrollment_service, ai_service, quiz_service
 
 router = APIRouter()
 
@@ -45,34 +46,6 @@ STAFF_ROLES = (UserRole.INSTRUCTOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)
 @router.get("/learning-paths", response_model=List[LearningPathRead])
 def list_learning_paths(db: Session = Depends(get_db)):
     return course_service.get_learning_paths(db)
-
-
-@router.get(
-    "/admin/learning-paths",
-    response_model=List[LearningPathRead],
-    dependencies=[Depends(require_role(*STAFF_ROLES))],
-)
-def list_all_learning_paths_admin(db: Session = Depends(get_db)):
-    return course_service.list_all_learning_paths_admin(db)
-
-
-@router.post(
-    "/learning-paths",
-    response_model=LearningPathRead,
-    status_code=201,
-    dependencies=[Depends(require_role(*STAFF_ROLES))],
-)
-def create_learning_path(path_in: LearningPathCreate, db: Session = Depends(get_db)):
-    return course_service.create_learning_path(db, path_in)
-
-
-@router.patch(
-    "/learning-paths/{path_id}",
-    response_model=LearningPathRead,
-    dependencies=[Depends(require_role(*STAFF_ROLES))],
-)
-def update_learning_path(path_id: UUID, updates: LearningPathUpdate, db: Session = Depends(get_db)):
-    return course_service.update_learning_path(db, path_id, updates)
 
 
 @router.get("/courses", response_model=List[CourseRead])
@@ -104,20 +77,39 @@ def enroll(course_id: UUID, current_user: User = Depends(get_current_user), db: 
 
 
 @router.post("/courses/{course_id}/progress", response_model=ProgressRead)
-def update_progress(
+def ping_progress(
     course_id: UUID,
-    progress_in: ProgressUpdate,
+    progress_in: LessonProgressPing,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return enrollment_service.mark_lesson_progress(
+    """
+    Called periodically (e.g. every 15s) while a lesson is being viewed.
+    Whether this actually flips is_completed is decided server-side —
+    see enrollment_service.ping_lesson_progress.
+    """
+    return enrollment_service.ping_lesson_progress(
         db,
         user_id=current_user.id,
         course_id=course_id,
         lesson_id=progress_in.lesson_id,
-        is_completed=progress_in.is_completed,
         time_spent_seconds=progress_in.time_spent_seconds,
     )
+
+
+@router.get("/lessons/{lesson_id}/quiz", response_model=QuizPublicRead)
+def get_lesson_quiz(lesson_id: UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return quiz_service.get_quiz_for_lesson(db, lesson_id)
+
+
+@router.post("/quizzes/{quiz_id}/attempt", response_model=QuizAttemptRead)
+def submit_quiz(
+    quiz_id: UUID,
+    submission: QuizAttemptSubmit,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return quiz_service.submit_quiz_attempt(db, current_user.id, quiz_id, submission.answers)
 
 
 # --- Instructor/Admin routes ---

@@ -4,6 +4,14 @@ app/services/enrollment_service.py
 Handles enrolling a user in a course, recording lesson progress, and
 computing certificate eligibility.
 
+Completion is server-verified, never a trusted client flag:
+  - Lessons WITHOUT a quiz: complete once enough time has been spent
+    viewing them (see ping_lesson_progress / _required_seconds).
+  - Lessons WITH a quiz: complete ONLY by passing that quiz — see
+    quiz_service.submit_quiz_attempt, which calls
+    mark_lesson_complete_via_quiz below. No other path can complete
+    a quiz-gated lesson.
+
 Certificate eligibility rule (Enrollment.is_eligible_for_certificate):
   - All lessons marked complete, AND
   - If course.requires_capstone: an APPROVED CapstoneSubmission exists
@@ -59,31 +67,73 @@ def get_enrollment(db: Session, user_id: UUID, course_id: UUID) -> Enrollment:
     return enrollment
 
 
-def mark_lesson_progress(
+def _get_or_create_progress(db: Session, enrollment_id: UUID, lesson_id: UUID) -> Progress:
+    progress = (
+        db.query(Progress)
+        .filter(Progress.enrollment_id == enrollment_id, Progress.lesson_id == lesson_id)
+        .first()
+    )
+    if not progress:
+        progress = Progress(enrollment_id=enrollment_id, lesson_id=lesson_id)
+        db.add(progress)
+    return progress
+
+
+def _required_seconds(lesson: Lesson) -> int:
+    """
+    How long a student must spend on a no-quiz lesson before it auto-completes.
+    60% of the lesson's estimated reading time, floor of 15s so a very short
+    lesson isn't effectively unblockable; falls back to a flat 45s if the
+    lesson has no estimated_minutes set.
+    """
+    if lesson.estimated_minutes:
+        return max(15, int(lesson.estimated_minutes * 60 * 0.6))
+    return 45
+
+
+def ping_lesson_progress(
     db: Session,
     user_id: UUID,
     course_id: UUID,
     lesson_id: UUID,
-    is_completed: bool,
     time_spent_seconds: Optional[int] = None,
 ) -> Progress:
+    """
+    Called periodically (e.g. every 15s) while a student is actively viewing
+    a lesson. Accumulates time. For lessons without a quiz, this is the only
+    thing that can flip is_completed — once accumulated time clears the
+    threshold, the server marks it complete itself. For lessons with a quiz,
+    this only accumulates time; completion still requires passing the quiz.
+    """
     enrollment = get_enrollment(db, user_id, course_id)
+    lesson = db.query(Lesson).filter(Lesson.id == lesson_id, Lesson.course_id == course_id).first()
+    if not lesson:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lesson not found on this course")
 
-    progress = (
-        db.query(Progress)
-        .filter(Progress.enrollment_id == enrollment.id, Progress.lesson_id == lesson_id)
-        .first()
-    )
-    if not progress:
-        progress = Progress(enrollment_id=enrollment.id, lesson_id=lesson_id)
-        db.add(progress)
+    progress = _get_or_create_progress(db, enrollment.id, lesson_id)
 
-    progress.is_completed = is_completed
-    if time_spent_seconds is not None:
-        progress.time_spent_seconds = (progress.time_spent_seconds or 0) + time_spent_seconds
-    if is_completed:
-        progress.completed_at = datetime.now(timezone.utc)
+    if time_spent_seconds:
+        progress.time_spent_seconds = (progress.time_spent_seconds or 0) + max(0, time_spent_seconds)
 
+    if not lesson.has_quiz and not progress.is_completed:
+        if (progress.time_spent_seconds or 0) >= _required_seconds(lesson):
+            progress.is_completed = True
+            progress.completed_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(progress)
+
+    _recompute_completion(db, enrollment)
+    return progress
+
+
+def mark_lesson_complete_via_quiz(db: Session, user_id: UUID, course_id: UUID, lesson_id: UUID) -> Progress:
+    """Called only from quiz_service.submit_quiz_attempt after a genuine pass."""
+    enrollment = get_enrollment(db, user_id, course_id)
+    progress = _get_or_create_progress(db, enrollment.id, lesson_id)
+
+    progress.is_completed = True
+    progress.completed_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(progress)
 

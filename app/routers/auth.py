@@ -1,9 +1,10 @@
 """
 app/routers/auth.py
 
-POST /api/auth/signup
-POST /api/auth/login
-GET  /api/auth/me
+POST  /api/auth/signup
+POST  /api/auth/login
+GET   /api/auth/me
+PATCH /api/auth/me
 """
 
 from fastapi import APIRouter, Depends
@@ -14,7 +15,7 @@ from app.core.security import create_access_token
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.auth import LoginRequest, TokenWithUser
-from app.schemas.user import UserCreate, UserRead
+from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.services import auth_service
 
 router = APIRouter()
@@ -36,4 +37,22 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=UserRead)
 def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@router.patch("/me", response_model=UserRead)
+def update_me(
+    updates: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Lets a user set their display_name (among other profile fields) — this
+    is what future certificates use for student_name_snapshot instead of
+    falling back to their username.
+    """
+    for field, value in updates.model_dump(exclude_unset=True).items():
+        setattr(current_user, field, value)
+    db.commit()
+    db.refresh(current_user)
     return current_user

@@ -21,9 +21,14 @@ class EnrollmentRead(TimestampedRead):
     is_eligible_for_certificate: bool
 
 
-class ProgressUpdate(BaseModel):
+class LessonProgressPing(BaseModel):
+    """
+    Sent periodically while a student is actively viewing a lesson.
+    Deliberately has no is_completed field — completion is always computed
+    server-side (time threshold for no-quiz lessons, quiz pass otherwise),
+    never trusted from the client.
+    """
     lesson_id: UUID
-    is_completed: bool
     time_spent_seconds: Optional[int] = None
 
 
