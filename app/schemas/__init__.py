@@ -9,7 +9,7 @@ from app.schemas.learning import (  # noqa: F401
     CourseCreate, CourseAIDraftRequest, CourseUpdate, CourseRead, CourseWithLessons,
     LessonCreate, LessonUpdate, LessonRead,
 )
-from app.schemas.enrollment import EnrollmentCreate, EnrollmentRead, ProgressUpdate, ProgressRead  # noqa: F401
+from app.schemas.enrollment import EnrollmentCreate, EnrollmentRead, LessonProgressPing, ProgressRead  # noqa: F401
 from app.schemas.assessment import (  # noqa: F401
     QuizQuestion, QuizCreate, QuizRead, QuizPublicRead,
     QuizAttemptSubmit, QuizAttemptRead,
