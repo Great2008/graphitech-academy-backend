@@ -15,12 +15,12 @@ Admin/Super Admin only:
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Response, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.dependencies import get_current_user, require_role
-from app.models.base import UserRole
+from app.models.base import UserRole, CertificateStatus
 from app.models.user import User
 from app.schemas.certificate import CertificateRead, CertificateVerifyPublic, CertificateRevoke
 from app.services import certificate_service
@@ -49,8 +49,17 @@ def download_certificate(certificate_number: str, db: Session = Depends(get_db))
     number can download the PDF. Generated fresh on every request rather
     than served from storage, so this works even if the async asset
     upload at issuance time failed or storage isn't configured.
+
+    Revoked certificates cannot be downloaded — only verified (which shows
+    the revoked status clearly, stamped).
     """
     certificate = certificate_service.verify_certificate(db, certificate_number)
+
+    if certificate.status != CertificateStatus.VALID:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="This certificate has been revoked and is no longer available for download.",
+        )
 
     from app.services import certificate_pdf_service
     pdf_bytes = certificate_pdf_service.render_certificate_pdf_bytes(certificate)
