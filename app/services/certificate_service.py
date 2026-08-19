@@ -144,6 +144,37 @@ def try_auto_issue_free_certificate(db: Session, user_id: UUID, course_id: UUID)
         return None
 
 
+def backfill_missing_certificates(db: Session) -> list:
+    """
+    Sweeps every enrollment that's already eligible for a certificate but
+    never got one issued — covers anyone who became eligible before
+    auto-issuance existed, or whose issuance failed for some transient
+    reason. Only touches free courses, same rule as auto-issuance. Returns
+    the list of newly-issued Certificate objects.
+    """
+    eligible_enrollments = (
+        db.query(Enrollment)
+        .filter(Enrollment.is_eligible_for_certificate.is_(True))
+        .all()
+    )
+
+    issued = []
+    for enrollment in eligible_enrollments:
+        already_has_cert = (
+            db.query(Certificate)
+            .filter(Certificate.enrollment_id == enrollment.id)
+            .first()
+        )
+        if already_has_cert:
+            continue
+
+        cert = try_auto_issue_free_certificate(db, enrollment.user_id, enrollment.course_id)
+        if cert:
+            issued.append(cert)
+
+    return issued
+
+
 def _attach_certificate_assets(db: Session, certificate: Certificate) -> None:
     """
     Generates the QR code + PDF and uploads them, then saves the URLs onto
