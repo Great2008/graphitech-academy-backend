@@ -125,6 +125,9 @@ def _finalize_certificate_eligibility(db: Session, user_id: UUID, course_id: UUI
         enrollment.status = EnrollmentStatus.COMPLETED
         enrollment.completed_at = enrollment.completed_at or datetime.now(timezone.utc)
         db.commit()
+
+        from app.services import certificate_service
+        certificate_service.try_auto_issue_free_certificate(db, user_id, course_id)
     # If lessons aren't all complete yet, eligibility will be finalized
     # automatically once the last lesson is marked complete — see
     # enrollment_service._recompute_completion, which checks for an

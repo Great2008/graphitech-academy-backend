@@ -123,6 +123,27 @@ def claim_free_certificate(db: Session, user_id: UUID, course_id: UUID) -> Certi
     return issue_certificate(db, user_id, course_id, payment=None)
 
 
+def try_auto_issue_free_certificate(db: Session, user_id: UUID, course_id: UUID) -> Optional[Certificate]:
+    """
+    Best-effort auto-issuance for free courses: called from wherever
+    Enrollment.is_eligible_for_certificate flips to True (capstone approval,
+    or the final lesson completing). Paid courses are left alone — the
+    student still has to go through the payment flow for those.
+
+    Never raises. If the course has a fee, or the enrollment somehow isn't
+    actually eligible yet, this is a silent no-op — it's a convenience,
+    not a required step, so a failure here should never break whatever
+    eligibility-changing action triggered it.
+    """
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course or course.certificate_fee_kobo:
+        return None
+    try:
+        return issue_certificate(db, user_id, course_id, payment=None)
+    except HTTPException:
+        return None
+
+
 def _attach_certificate_assets(db: Session, certificate: Certificate) -> None:
     """
     Generates the QR code + PDF and uploads them, then saves the URLs onto

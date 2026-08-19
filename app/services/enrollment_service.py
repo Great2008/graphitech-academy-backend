@@ -165,7 +165,10 @@ def _recompute_completion(db: Session, enrollment: Enrollment) -> None:
         enrollment.status = EnrollmentStatus.COMPLETED
         enrollment.completed_at = enrollment.completed_at or datetime.now(timezone.utc)
 
+        became_eligible = False
         if not course.requires_capstone:
+            if not enrollment.is_eligible_for_certificate:
+                became_eligible = True
             enrollment.is_eligible_for_certificate = True
         else:
             approved_capstone = (
@@ -178,6 +181,12 @@ def _recompute_completion(db: Session, enrollment: Enrollment) -> None:
                 .first()
             )
             if approved_capstone:
+                if not enrollment.is_eligible_for_certificate:
+                    became_eligible = True
                 enrollment.is_eligible_for_certificate = True
 
         db.commit()
+
+        if became_eligible:
+            from app.services import certificate_service
+            certificate_service.try_auto_issue_free_certificate(db, enrollment.user_id, enrollment.course_id)
