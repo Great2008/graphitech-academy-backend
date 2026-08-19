@@ -77,6 +77,21 @@ def get_my_certificates(current_user: User = Depends(get_current_user), db: Sess
 
 
 @router.post(
+    "/certificates/backfill",
+    response_model=List[CertificateRead],
+    dependencies=[Depends(require_role(UserRole.ADMIN, UserRole.SUPER_ADMIN))],
+)
+def backfill_missing_certificates(db: Session = Depends(get_db)):
+    """
+    One-off sweep: issues certificates for any enrollment that's already
+    eligible but never got one (e.g. became eligible before auto-issuance
+    existed). Safe to run repeatedly — already-issued enrollments are
+    skipped automatically.
+    """
+    return certificate_service.backfill_missing_certificates(db)
+
+
+@router.post(
     "/certificates/{certificate_id}/regenerate-assets",
     response_model=CertificateRead,
     dependencies=[Depends(require_role(UserRole.ADMIN, UserRole.SUPER_ADMIN))],
